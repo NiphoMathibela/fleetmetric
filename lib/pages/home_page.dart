@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/pages/vehicle_dashboard_widget.dart';
+import 'package:flutter_application_1/pages/enhanced_dashboard.dart';
 import 'package:flutter_application_1/pages/vehicles_page.dart';
 import 'package:flutter_application_1/pages/profile_page.dart';
 import '../services/fuel_repository.dart';
@@ -82,7 +82,7 @@ class _HomePageState extends State<HomePage> {
                 Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const VehicleDashboardWidget()));
+                        builder: (context) => const EnhancedDashboard()));
               },
             ),
             ListTile(
@@ -105,6 +105,7 @@ class _HomePageState extends State<HomePage> {
               title: const Text('Profile',
                   style: TextStyle(color: Color(0xFFf7f8f9))),
               onTap: () {
+                Navigator.pop(context);
                 Navigator.push(
                     context,
                     MaterialPageRoute(

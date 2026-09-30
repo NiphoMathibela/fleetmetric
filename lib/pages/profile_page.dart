@@ -33,7 +33,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
     try {
       final user = _supabase.auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User not authenticated')),
+          );
+        }
+        return;
+      }
 
       final userEmail = user.email;
       final userName = user.userMetadata?['name'] as String?;
@@ -41,8 +49,10 @@ class _ProfilePageState extends State<ProfilePage> {
       final vehicles = await _fuelRepo.getVehicles();
       final fuelSlips = await _fuelRepo.getFuelSlips();
 
-      final totalSpend = fuelSlips.fold(
-          0.0, (sum, slip) => sum + ((slip['total_amount'] as num?)?.toDouble() ?? 0.0));
+      double totalSpend = 0.0;
+      for (final slip in fuelSlips) {
+        totalSpend += (slip['total_amount'] as num?)?.toDouble() ?? 0.0;
+      }
 
       if (mounted) {
         setState(() {
@@ -70,11 +80,13 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C1C1E),
         title: const Text('Logout', style: TextStyle(color: Color(0xFFf7f8f9))),
-        content: const Text('Are you sure you want to logout?', style: TextStyle(color: Color(0xFF7f7f81))),
+        content: const Text('Are you sure you want to logout?',
+            style: TextStyle(color: Color(0xFF7f7f81))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFFfca541))),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFFfca541))),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -88,6 +100,91 @@ class _ProfilePageState extends State<ProfilePage> {
       await _authService.signOut();
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    }
+  }
+
+  Future<void> _handleEditProfile() async {
+    final nameController = TextEditingController(text: _userName ?? '');
+    final emailController = TextEditingController(text: _userEmail ?? '');
+
+    final updated = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        title: const Text('Edit Profile',
+            style: TextStyle(color: Color(0xFFf7f8f9))),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                style: const TextStyle(color: Color(0xFFf7f8f9)),
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  labelStyle: TextStyle(color: Color(0xFF7f7f81)),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF7f7f81)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFfca541)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailController,
+                enabled: false,
+                style: const TextStyle(color: Color(0xFF7f7f81)),
+                decoration: const InputDecoration(
+                  labelText: 'Email (cannot be changed)',
+                  labelStyle: TextStyle(color: Color(0xFF7f7f81)),
+                  disabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF7f7f81)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'To change your email, please contact support.',
+                style: TextStyle(fontSize: 11, color: Color(0xFF7f7f81)),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFFfca541))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child:
+                const Text('Save', style: TextStyle(color: Color(0xFFfca541))),
+          ),
+        ],
+      ),
+    );
+
+    if (updated == true && nameController.text.trim().isNotEmpty) {
+      try {
+        await _supabase.auth.updateUser(
+          UserAttributes(data: {'name': nameController.text.trim()}),
+        );
+        _loadProfileData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error updating profile: $e')),
+          );
+        }
       }
     }
   }
@@ -114,7 +211,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         CircleAvatar(
                           radius: 50,
-                          backgroundColor: const Color(0xFFfca541).withValues(alpha: 0.2),
+                          backgroundColor:
+                              const Color(0xFFfca541).withValues(alpha: 0.2),
                           child: Icon(
                             Icons.person,
                             size: 50,
@@ -189,11 +287,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     icon: Icons.edit,
                     title: 'Edit Profile',
                     subtitle: 'Update your name and email',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Edit profile coming soon')),
-                      );
-                    },
+                    onTap: _handleEditProfile,
                   ),
                   _SettingsTile(
                     icon: Icons.notifications_outlined,
@@ -201,7 +295,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     subtitle: 'Manage notification preferences',
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Notifications coming soon')),
+                        const SnackBar(
+                            content: Text('Notifications coming soon')),
                       );
                     },
                   ),

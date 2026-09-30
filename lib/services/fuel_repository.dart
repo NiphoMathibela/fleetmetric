@@ -29,13 +29,17 @@ class FuelRepository {
     required String registrationNumber,
     required int startingOdometer,
   }) async {
-    final response = await _supabase.from('vehicles').insert({
-      'user_id': _currentUserId,
-      'make': make,
-      'model': model,
-      'registration_number': registrationNumber,
-      'starting_odometer': startingOdometer,
-    }).select().single();
+    final response = await _supabase
+        .from('vehicles')
+        .insert({
+          'user_id': _currentUserId,
+          'make': make,
+          'model': model,
+          'registration_number': registrationNumber,
+          'starting_odometer': startingOdometer,
+        })
+        .select()
+        .single();
 
     return Vehicle.fromJson(response);
   }
@@ -47,13 +51,17 @@ class FuelRepository {
     required String registrationNumber,
     required int startingOdometer,
   }) async {
-    await _supabase.from('vehicles').update({
-      'make': make,
-      'model': model,
-      'registration_number': registrationNumber,
-      'starting_odometer': startingOdometer,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', id).eq('user_id', _currentUserId);
+    await _supabase
+        .from('vehicles')
+        .update({
+          'make': make,
+          'model': model,
+          'registration_number': registrationNumber,
+          'starting_odometer': startingOdometer,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', id)
+        .eq('user_id', _currentUserId);
   }
 
   // --- STORAGE & FUEL SLIPS ---
@@ -184,7 +192,8 @@ class FuelRepository {
   }
 
   /// Fetches maintenance schedules for a given vehicle
-  Future<List<Map<String, dynamic>>> getMaintenanceSchedules(String vehicleId) async {
+  Future<List<Map<String, dynamic>>> getMaintenanceSchedules(
+      String vehicleId) async {
     final response = await _supabase
         .from('maintenance_schedules')
         .select()
@@ -197,7 +206,8 @@ class FuelRepository {
   // --- DASHBOARD ANALYTICS ---
 
   /// Gets fuel slips for a specific vehicle for dashboard calculations
-  Future<List<Map<String, dynamic>>> getFuelSlipsForVehicle(String vehicleId) async {
+  Future<List<Map<String, dynamic>>> getFuelSlipsForVehicle(
+      String vehicleId) async {
     final response = await _supabase
         .from('fuel_slips')
         .select()
@@ -206,6 +216,106 @@ class FuelRepository {
         .order('transaction_date', ascending: true);
 
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Gets fuel slips filtered by date range (for dashboard metrics)
+  Future<List<Map<String, dynamic>>> getFuelSlipsByDateRange({
+    String? vehicleId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    var query = _supabase
+        .from('fuel_slips')
+        .select('*, vehicles(make, model, registration_number)')
+        .eq('user_id', _currentUserId)
+        .gte('transaction_date', startDate.toIso8601String())
+        .lte('transaction_date', endDate.toIso8601String());
+
+    if (vehicleId != null) {
+      query = query.eq('vehicle_id', vehicleId);
+    }
+
+    final response = await query.order('transaction_date', ascending: false);
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Calculates total liters for a date range
+  Future<double> calculateTotalLiters({
+    String? vehicleId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final slips = await getFuelSlipsByDateRange(
+      vehicleId: vehicleId,
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    double total = 0.0;
+    for (final slip in slips) {
+      total += (slip['volume_units'] as num?)?.toDouble() ?? 0.0;
+    }
+    return total;
+  }
+
+  /// Calculates total spend for a date range
+  Future<double> calculateTotalSpend({
+    String? vehicleId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final slips = await getFuelSlipsByDateRange(
+      vehicleId: vehicleId,
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    double total = 0.0;
+    for (final slip in slips) {
+      total += (slip['total_amount'] as num?)?.toDouble() ?? 0.0;
+    }
+    return total;
+  }
+
+  /// Calculates total distance for a date range
+  Future<double> calculateTotalDistance({
+    String? vehicleId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final slips = await getFuelSlipsByDateRange(
+      vehicleId: vehicleId,
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    double total = 0.0;
+    for (final slip in slips) {
+      total += (slip['distance_driven'] as num?)?.toDouble() ?? 0.0;
+    }
+    return total;
+  }
+
+  /// Calculates average L/100km for a date range
+  Future<double> calculateAvgL100kmForRange({
+    String? vehicleId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final slips = await getFuelSlipsByDateRange(
+      vehicleId: vehicleId,
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    final validSlips =
+        slips.where((s) => s['consumption_l_100km'] != null).toList();
+    if (validSlips.isEmpty) return 0.0;
+
+    final total = validSlips.fold(0.0,
+        (sum, slip) => sum + ((slip['consumption_l_100km'] as num).toDouble()));
+
+    return total / validSlips.length;
   }
 
   /// Calculates monthly forecast based on last 30 days of spending
@@ -220,9 +330,11 @@ class FuelRepository {
 
     if (response.isEmpty) return 0.0;
 
-    final total = (response as List)
-        .fold(0.0, (sum, slip) => sum + ((slip['total_amount'] as num?)?.toDouble() ?? 0.0));
-    
+    final total = (response as List).fold(
+        0.0,
+        (sum, slip) =>
+            sum + ((slip['total_amount'] as num?)?.toDouble() ?? 0.0));
+
     return total;
   }
 
@@ -237,7 +349,7 @@ class FuelRepository {
     for (int i = 0; i < slips.length; i++) {
       final slip = slips[i];
       totalCost += (slip['total_amount'] as num?)?.toDouble() ?? 0.0;
-      
+
       if (slip['distance_driven'] != null) {
         totalDistance += (slip['distance_driven'] as num).toDouble();
       }
@@ -256,7 +368,8 @@ class FuelRepository {
   }
 
   /// Gets efficiency history (date and L/100km) for chart
-  Future<List<Map<String, dynamic>>> getEfficiencyHistory(String vehicleId) async {
+  Future<List<Map<String, dynamic>>> getEfficiencyHistory(
+      String vehicleId) async {
     final response = await _supabase
         .from('fuel_slips')
         .select('transaction_date, consumption_l_100km')
@@ -267,5 +380,84 @@ class FuelRepository {
         .limit(20);
 
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Deletes a fuel slip by ID
+  Future<void> deleteFuelSlip(String slipId) async {
+    await _supabase
+        .from('fuel_slips')
+        .delete()
+        .eq('id', slipId)
+        .eq('user_id', _currentUserId);
+  }
+
+  /// Updates an existing fuel slip
+  Future<void> updateFuelSlip({
+    required String slipId,
+    required String vehicleId,
+    required String merchantName,
+    required double totalAmount,
+    required double vatAmount,
+    required double pricePerUnit,
+    required double volumeUnits,
+    required int odometerReading,
+    required DateTime transactionDate,
+    File? newImageFile,
+  }) async {
+    String? imagePath;
+
+    if (newImageFile != null) {
+      imagePath = await uploadSlipImage(newImageFile);
+    }
+
+    final slip = await _supabase
+        .from('fuel_slips')
+        .select('odometer_reading')
+        .eq('id', slipId)
+        .single();
+
+    final prevOdo = slip['odometer_reading'] as int?;
+    double? distanceDriven;
+    double? consumptionL100km;
+
+    if (prevOdo != null && odometerReading > prevOdo) {
+      distanceDriven = (odometerReading - prevOdo).toDouble();
+      consumptionL100km = (volumeUnits / distanceDriven) * 100;
+    }
+
+    final updateData = {
+      'vehicle_id': vehicleId,
+      'merchant_name': merchantName,
+      'transaction_date': transactionDate.toIso8601String(),
+      'total_amount': totalAmount,
+      'vat_amount': vatAmount,
+      'price_per_unit': pricePerUnit,
+      'volume_units': volumeUnits,
+      'odometer_reading': odometerReading,
+      'distance_driven': distanceDriven,
+      'consumption_l_100km': consumptionL100km,
+    };
+
+    if (imagePath != null) {
+      updateData['image_path'] = imagePath;
+    }
+
+    await _supabase
+        .from('fuel_slips')
+        .update(updateData)
+        .eq('id', slipId)
+        .eq('user_id', _currentUserId);
+  }
+
+  /// Gets a single fuel slip by ID
+  Future<Map<String, dynamic>?> getFuelSlipById(String slipId) async {
+    final response = await _supabase
+        .from('fuel_slips')
+        .select('*, vehicles(make, model, registration_number)')
+        .eq('id', slipId)
+        .eq('user_id', _currentUserId)
+        .maybeSingle();
+
+    return response;
   }
 }
