@@ -193,4 +193,79 @@ class FuelRepository {
 
     return List<Map<String, dynamic>>.from(response);
   }
+
+  // --- DASHBOARD ANALYTICS ---
+
+  /// Gets fuel slips for a specific vehicle for dashboard calculations
+  Future<List<Map<String, dynamic>>> getFuelSlipsForVehicle(String vehicleId) async {
+    final response = await _supabase
+        .from('fuel_slips')
+        .select()
+        .eq('user_id', _currentUserId)
+        .eq('vehicle_id', vehicleId)
+        .order('transaction_date', ascending: true);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Calculates monthly forecast based on last 30 days of spending
+  Future<double> calculateMonthlyForecast(String vehicleId) async {
+    final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
+    final response = await _supabase
+        .from('fuel_slips')
+        .select('total_amount')
+        .eq('user_id', _currentUserId)
+        .eq('vehicle_id', vehicleId)
+        .gte('transaction_date', thirtyDaysAgo.toIso8601String());
+
+    if (response.isEmpty) return 0.0;
+
+    final total = (response as List)
+        .fold(0.0, (sum, slip) => sum + ((slip['total_amount'] as num?)?.toDouble() ?? 0.0));
+    
+    return total;
+  }
+
+  /// Calculates average cost per km for a vehicle
+  Future<double> calculateAvgCostPerKm(String vehicleId) async {
+    final slips = await getFuelSlipsForVehicle(vehicleId);
+    if (slips.isEmpty) return 0.0;
+
+    double totalCost = 0.0;
+    double totalDistance = 0.0;
+
+    for (int i = 0; i < slips.length; i++) {
+      final slip = slips[i];
+      totalCost += (slip['total_amount'] as num?)?.toDouble() ?? 0.0;
+      
+      if (slip['distance_driven'] != null) {
+        totalDistance += (slip['distance_driven'] as num).toDouble();
+      }
+    }
+
+    if (totalDistance == 0) return 0.0;
+    return totalCost / totalDistance;
+  }
+
+  /// Calculates current average L/100km for a vehicle
+  Future<double> calculateCurrentAvgL100km(String vehicleId) async {
+    final historical = await getHistoricalL100km(vehicleId);
+    if (historical.isEmpty) return 0.0;
+
+    return historical.reduce((a, b) => a + b) / historical.length;
+  }
+
+  /// Gets efficiency history (date and L/100km) for chart
+  Future<List<Map<String, dynamic>>> getEfficiencyHistory(String vehicleId) async {
+    final response = await _supabase
+        .from('fuel_slips')
+        .select('transaction_date, consumption_l_100km')
+        .eq('user_id', _currentUserId)
+        .eq('vehicle_id', vehicleId)
+        .not('consumption_l_100km', 'is', null)
+        .order('transaction_date', ascending: true)
+        .limit(20);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
 }
