@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/fuel_models.dart';
 import '../services/fuel_repository.dart';
+import 'maintenance_dashboard.dart';
 
 class VehiclesPage extends StatefulWidget {
   const VehiclesPage({super.key});
@@ -60,7 +61,8 @@ class _VehiclesPageState extends State<VehiclesPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF100f14),
       appBar: AppBar(
-        title: const Text('Garage / Vehicles', style: TextStyle(color: Colors.white)),
+        title: const Text('Garage / Vehicles',
+            style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
         backgroundColor: const Color(0xFF100f14),
       ),
@@ -87,7 +89,8 @@ class _VehiclesPageState extends State<VehiclesPage> {
                         ),
                         onPressed: () => _openVehicleForm(),
                         icon: const Icon(Icons.add, color: Colors.white),
-                        label: const Text('Add Your First Vehicle', style: TextStyle(color: Colors.white)),
+                        label: const Text('Add Your First Vehicle',
+                            style: TextStyle(color: Colors.white)),
                       ),
                     ],
                   ),
@@ -113,10 +116,32 @@ class _VehiclesPageState extends State<VehiclesPage> {
                           'Reg: ${vehicle.registrationNumber}\nStarting Odo: ${vehicle.startingOdometer} km',
                         ),
                         isThreeLine: true,
-                        trailing: IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _openVehicleForm(vehicle),
-                          tooltip: 'Edit Vehicle',
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.build,
+                                  color: Color(0xFFfca541)),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MaintenanceDashboard(
+                                      vehicleId: vehicle.id,
+                                      vehicleName:
+                                          '${vehicle.make} ${vehicle.model}',
+                                    ),
+                                  ),
+                                );
+                              },
+                              tooltip: 'Maintenance',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _openVehicleForm(vehicle),
+                              tooltip: 'Edit Vehicle',
+                            ),
+                          ],
                         ),
                       ),
                     );
