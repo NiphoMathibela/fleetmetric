@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/vehicle_dashboard_widget.dart';
 import 'package:flutter_application_1/pages/vehicles_page.dart';
+import 'package:flutter_application_1/pages/profile_page.dart';
 import '../services/fuel_repository.dart';
 import '../services/auth_service.dart';
 import '../pages/addfuel_slip.dart';
@@ -45,15 +46,14 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  double get _totalSpend => _fuelSlips.fold(
-      0.0, (sum, slip) => sum + ((slip['total_amount'] as num?)?.toDouble() ?? 0.0));
+  double get _totalSpend => _fuelSlips.fold(0.0,
+      (sum, slip) => sum + ((slip['total_amount'] as num?)?.toDouble() ?? 0.0));
 
-  double get _totalLitres => _fuelSlips.fold(
-      0.0, (sum, slip) => sum + ((slip['volume_units'] as num?)?.toDouble() ?? 0.0));
+  double get _totalLitres => _fuelSlips.fold(0.0,
+      (sum, slip) => sum + ((slip['volume_units'] as num?)?.toDouble() ?? 0.0));
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: const Color(0xFF100f14),
       appBar: AppBar(
@@ -67,11 +67,8 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       drawer: Drawer(
-        backgroundColor: const Color(0xFF100f14),
-        child: ListView(
-          padding: EdgeInsets.zero,
-          
-          children: [
+          backgroundColor: const Color(0xFF100f14),
+          child: ListView(padding: EdgeInsets.zero, children: [
             //Drawer Header
             const DrawerHeader(child: Text('Menu')),
 
@@ -79,32 +76,42 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               hoverColor: const Color(0xFF212227),
               leading: const Icon(Icons.home, color: Color(0xFFfca541)),
-              title: const Text('Dashboard', style: TextStyle(color: Color(0xFFf7f8f9))),
+              title: const Text('Dashboard',
+                  style: TextStyle(color: Color(0xFFf7f8f9))),
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder:(context) => const VehicleDashboardWidget()));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const VehicleDashboardWidget()));
               },
             ),
             ListTile(
               hoverColor: const Color(0xFF212227),
-              leading: const Icon(Icons.directions_car, color: Color(0xFFfca541)),
-              title: const Text('Manage Vehicles', style: TextStyle(color: Color(0xFFf7f8f9))),
+              leading:
+                  const Icon(Icons.directions_car, color: Color(0xFFfca541)),
+              title: const Text('Manage Vehicles',
+                  style: TextStyle(color: Color(0xFFf7f8f9))),
               onTap: () {
                 // Navigate to vehicle management page
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const VehiclesPage()));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const VehiclesPage()));
               },
             ),
             ListTile(
               hoverColor: const Color(0xFF212227),
               leading: const Icon(Icons.person, color: Color(0xFFfca541)),
-              title: const Text('Profile', style: TextStyle(color: Color(0xFFf7f8f9))),
+              title: const Text('Profile',
+                  style: TextStyle(color: Color(0xFFf7f8f9))),
               onTap: () {
-                // Navigate to settings page (to be implemented)
-                Navigator.pop(context); // Close drawer for now
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const ProfilePage()));
               },
             ),
-          ]
-        )
-      ), // Placeholder for future navigation drawer to manage vehicles, settings, etc.
+          ])), // Placeholder for future navigation drawer to manage vehicles, settings, etc.
       body: RefreshIndicator(
         onRefresh: _fetchFuelSlips,
         child: _isLoading
@@ -115,7 +122,10 @@ class _HomePageState extends State<HomePage> {
                   // User Info Header
                   Text(
                     'Hi, ${widget.userName}',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(color: const Color(0xFFf7f8f9)),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(color: const Color(0xFFf7f8f9)),
                   ),
                   const SizedBox(height: 12),
 
@@ -151,11 +161,15 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text(
                         'Recent Fuel Slips',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold, color: const Color(0xFFf7f8f9),
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFFf7f8f9),
+                                ),
                       ),
-                      Text('${_fuelSlips.length} logs', style: const TextStyle(color: Color(0xFF7f7f81), fontSize: 12)),
+                      Text('${_fuelSlips.length} logs',
+                          style: const TextStyle(
+                              color: Color(0xFF7f7f81), fontSize: 12)),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -165,10 +179,12 @@ class _HomePageState extends State<HomePage> {
                     Container(
                       height: 180,
                       alignment: Alignment.center,
-                      child: const Text('No fuel slips added yet. Tap + below to add one.'),
+                      child: const Text(
+                          'No fuel slips added yet. Tap + below to add one.'),
                     )
                   else
-                    ..._fuelSlips.map((slip) => _FuelSlipCard(slip: slip, repo: _fuelRepo)),
+                    ..._fuelSlips.map(
+                        (slip) => _FuelSlipCard(slip: slip, repo: _fuelRepo)),
                 ],
               ),
       ),
@@ -182,8 +198,7 @@ class _HomePageState extends State<HomePage> {
           _fetchFuelSlips(); // Refresh list when returning from Add page
         },
         icon: const Icon(Icons.add_a_photo, color: Colors.white),
-        label: const Text('Add Slip', style: 
-        TextStyle(color: Colors.white)),
+        label: const Text('Add Slip', style: TextStyle(color: Colors.white)),
       ),
     );
   }
@@ -216,9 +231,14 @@ class _StatCard extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 28),
             const SizedBox(height: 8),
-            Text(title, style: const TextStyle(color: Color(0xFFf7f8f9), fontSize: 12)),
+            Text(title,
+                style: const TextStyle(color: Color(0xFFf7f8f9), fontSize: 12)),
             const SizedBox(height: 4),
-            Text(value, style: const TextStyle(color: Color(0xFF7f7f81), fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(value,
+                style: const TextStyle(
+                    color: Color(0xFF7f7f81),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18)),
           ],
         ),
       ),
@@ -257,7 +277,8 @@ class _FuelSlipCard extends StatelessWidget {
                       width: 70,
                       height: 70,
                       color: Colors.grey[300],
-                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2)),
                     );
                   }
                   if (snapshot.hasData) {
@@ -286,17 +307,22 @@ class _FuelSlipCard extends StatelessWidget {
                 children: [
                   Text(
                     slip['merchant_name'] ?? 'Fuel Station',
-                    style: const TextStyle(color: Color(0xFFf7f8f9), fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                        color: Color(0xFFf7f8f9),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     vehicleText,
-                    style: const TextStyle(color: Color(0xFFf7f8f9), fontSize: 12),
+                    style:
+                        const TextStyle(color: Color(0xFFf7f8f9), fontSize: 12),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${slip['volume_units']} L @ R${slip['price_per_unit']}/L • Odo: ${slip['odometer_reading']} km',
-                    style: const TextStyle(color: Color(0xFFf7f8f9), fontSize: 11),
+                    style:
+                        const TextStyle(color: Color(0xFFf7f8f9), fontSize: 11),
                   ),
                 ],
               ),
@@ -317,7 +343,8 @@ class _FuelSlipCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   slip['transaction_date'] ?? '',
-                  style: const TextStyle(color: Color(0xFFf7f8f9), fontSize: 11),
+                  style:
+                      const TextStyle(color: Color(0xFFf7f8f9), fontSize: 11),
                 ),
               ],
             ),
