@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/fuel_models.dart';
 
@@ -37,6 +38,7 @@ class FuelRepository {
           'model': model,
           'registration_number': registrationNumber,
           'starting_odometer': startingOdometer,
+          'current_odometer': startingOdometer,
         })
         .select()
         .single();
@@ -50,6 +52,7 @@ class FuelRepository {
     required String model,
     required String registrationNumber,
     required int startingOdometer,
+    int? currentOdometer,
   }) async {
     await _supabase
         .from('vehicles')
@@ -58,10 +61,30 @@ class FuelRepository {
           'model': model,
           'registration_number': registrationNumber,
           'starting_odometer': startingOdometer,
+          if (currentOdometer != null) 'current_odometer': currentOdometer,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', id)
         .eq('user_id', _currentUserId);
+  }
+
+  Future<void> updateVehicleCurrentOdometer({
+    required String vehicleId,
+    required int odometerReading,
+  }) async {
+    try {
+      await _supabase
+          .from('vehicles')
+          .update({
+            'current_odometer': odometerReading,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', vehicleId)
+          .eq('user_id', _currentUserId);
+    } catch (e) {
+      // If the column doesn't exist yet (migration not run), silently ignore
+      debugPrint('Failed to update current odometer (column may not exist): $e');
+    }
   }
 
   // --- STORAGE & FUEL SLIPS ---
@@ -125,6 +148,12 @@ class FuelRepository {
     };
 
     await _supabase.from('fuel_slips').insert(slipData);
+
+    // Update vehicle's current odometer
+    await updateVehicleCurrentOdometer(
+      vehicleId: vehicleId,
+      odometerReading: odometerReading,
+    );
   }
 
   Future<String> getSignedImageUrl(String imagePath) async {
@@ -161,17 +190,21 @@ class FuelRepository {
 
   /// Gets latest odometer reading recorded for a vehicle
   Future<int> getLatestOdometer(String vehicleId) async {
+    final vehicleResponse = await _supabase
+        .from('vehicles')
+        .select('starting_odometer, current_odometer')
+        .eq('id', vehicleId)
+        .single();
+
+    final currentOdo = vehicleResponse['current_odometer'] as int?;
+    if (currentOdo != null && currentOdo > 0) {
+      return currentOdo;
+    }
+
     final lastSlip = await getLatestFuelSlip(vehicleId);
     if (lastSlip != null && lastSlip['odometer_reading'] != null) {
       return lastSlip['odometer_reading'] as int;
     }
-
-    // Fall back to vehicle starting odometer if no fuel slips exist
-    final vehicleResponse = await _supabase
-        .from('vehicles')
-        .select('starting_odometer')
-        .eq('id', vehicleId)
-        .single();
 
     return vehicleResponse['starting_odometer'] as int? ?? 0;
   }
@@ -447,6 +480,15 @@ class FuelRepository {
         .update(updateData)
         .eq('id', slipId)
         .eq('user_id', _currentUserId);
+
+    // Update vehicle's current odometer if this is the latest slip
+    final latestSlip = await getLatestFuelSlip(vehicleId);
+    if (latestSlip != null && latestSlip['id'] == slipId) {
+      await updateVehicleCurrentOdometer(
+        vehicleId: vehicleId,
+        odometerReading: odometerReading,
+      );
+    }
   }
 
   /// Gets a single fuel slip by ID

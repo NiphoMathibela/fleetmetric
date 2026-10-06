@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/maintenance_models.dart';
+import '../services/notification_service.dart';
 
 class MaintenanceRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -56,6 +58,34 @@ class MaintenanceRepository {
         })
         .eq('id', schedule.id)
         .eq('user_id', _currentUserId);
+
+    // Schedule notification if next due date is set
+    if (schedule.nextDueDate != null) {
+      final notificationService = NotificationService();
+      final notificationId = schedule.id.hashCode;
+
+      // Cancel any existing notification for this schedule
+      await notificationService.cancelNotification(notificationId);
+
+      // Schedule new notification for 1 day before due date
+      final notificationDate = schedule.nextDueDate!.subtract(const Duration(days: 1));
+      if (notificationDate.isAfter(DateTime.now())) {
+        await notificationService.scheduleMaintenanceNotification(
+          id: notificationId,
+          title: 'Maintenance Due Soon',
+          body: '${schedule.componentName} is due on ${schedule.nextDueDate!.day} ${_getMonthName(schedule.nextDueDate!.month)}',
+          scheduledDate: notificationDate,
+        );
+      }
+    }
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
   }
 
   // --- VEHICLE SERVICES ---
@@ -123,6 +153,12 @@ class MaintenanceRepository {
       odometerReading,
       invoiceDate,
       items,
+    );
+
+    // Update vehicle's current odometer
+    await updateVehicleCurrentOdometer(
+      vehicleId: vehicleId,
+      odometerReading: odometerReading,
     );
 
     return VehicleService.fromJson({...serviceResponse, 'service_items': []});
@@ -196,6 +232,22 @@ class MaintenanceRepository {
       invoiceDate,
       items,
     );
+
+    // Update vehicle's current odometer if this is the latest service
+    final latestService = await _supabase
+        .from('vehicle_services')
+        .select('id, odometer_reading')
+        .eq('vehicle_id', vehicleId)
+        .order('invoice_date', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    if (latestService != null && latestService['id'] == serviceId) {
+      await updateVehicleCurrentOdometer(
+        vehicleId: vehicleId,
+        odometerReading: odometerReading,
+      );
+    }
   }
 
   // --- STORAGE ---
@@ -308,14 +360,14 @@ Only return valid JSON. If a field cannot be found, use null or empty string.
           ? serviceDate.add(Duration(days: schedule.intervalDays!))
           : null;
 
-      await updateMaintenanceSchedule(
-        schedule.copyWith(
-          lastServiceKm: odometerReading,
-          lastServiceDate: serviceDate,
-          nextDueKm: nextDueKm,
-          nextDueDate: nextDueDate,
-        ),
+      final updatedSchedule = schedule.copyWith(
+        lastServiceKm: odometerReading,
+        lastServiceDate: serviceDate,
+        nextDueKm: nextDueKm,
+        nextDueDate: nextDueDate,
       );
+
+      await updateMaintenanceSchedule(updatedSchedule);
     }
   }
 
@@ -323,9 +375,14 @@ Only return valid JSON. If a field cannot be found, use null or empty string.
   Future<int> getCurrentOdometer(String vehicleId) async {
     final vehicleResponse = await _supabase
         .from('vehicles')
-        .select('starting_odometer')
+        .select('starting_odometer, current_odometer')
         .eq('id', vehicleId)
         .single();
+
+    final currentOdo = vehicleResponse['current_odometer'] as int?;
+    if (currentOdo != null && currentOdo > 0) {
+      return currentOdo;
+    }
 
     final startingOdo = vehicleResponse['starting_odometer'] as int? ?? 0;
 
@@ -356,5 +413,24 @@ Only return valid JSON. If a field cannot be found, use null or empty string.
     }
 
     return startingOdo;
+  }
+
+  Future<void> updateVehicleCurrentOdometer({
+    required String vehicleId,
+    required int odometerReading,
+  }) async {
+    try {
+      await _supabase
+          .from('vehicles')
+          .update({
+            'current_odometer': odometerReading,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', vehicleId)
+          .eq('user_id', _currentUserId);
+    } catch (e) {
+      // If the column doesn't exist yet (migration not run), silently ignore
+      debugPrint('Failed to update current odometer (column may not exist): $e');
+    }
   }
 }

@@ -8,6 +8,7 @@ class Vehicle {
   final String model;
   final String registrationNumber;
   final int startingOdometer;
+  final int currentOdometer;
 
   Vehicle({
     required this.id,
@@ -16,16 +17,18 @@ class Vehicle {
     required this.model,
     required this.registrationNumber,
     required this.startingOdometer,
+    required this.currentOdometer,
   });
 
   factory Vehicle.fromJson(Map<String, dynamic> json) {
     return Vehicle(
-      id: json['id'],
-      userId: json['user_id'],
-      make: json['make'],
-      model: json['model'],
-      registrationNumber: json['registration_number'],
-      startingOdometer: json['starting_odometer'] ?? 0,
+      id: json['id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      make: json['make']?.toString() ?? '',
+      model: json['model']?.toString() ?? '',
+      registrationNumber: json['registration_number']?.toString() ?? '',
+      startingOdometer: json['starting_odometer'] as int? ?? 0,
+      currentOdometer: json['current_odometer'] as int? ?? json['starting_odometer'] as int? ?? 0,
     );
   }
 }

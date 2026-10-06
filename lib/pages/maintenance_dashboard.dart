@@ -5,6 +5,7 @@ import '../bloc/maintenance_bloc.dart';
 import '../repositories/maintenance_repository.dart';
 import '../models/maintenance_models.dart';
 import 'add_service_page.dart';
+import 'edit_schedule_dialog.dart';
 
 class MaintenanceDashboard extends StatefulWidget {
   final String vehicleId;
@@ -119,6 +120,7 @@ class _MaintenanceDashboardState extends State<MaintenanceDashboard> {
                       _MaintenanceStatusGrid(
                         schedules: state.schedules,
                         currentOdometer: state.currentOdometer,
+                        vehicleId: widget.vehicleId,
                       ),
                       const SizedBox(height: 24),
 
@@ -284,10 +286,12 @@ class _OdometerCard extends StatelessWidget {
 class _MaintenanceStatusGrid extends StatelessWidget {
   final List<MaintenanceSchedule> schedules;
   final int currentOdometer;
+  final String vehicleId;
 
   const _MaintenanceStatusGrid({
     required this.schedules,
     required this.currentOdometer,
+    required this.vehicleId,
   });
 
   @override
@@ -308,10 +312,11 @@ class _MaintenanceStatusGrid extends StatelessWidget {
         final kmRemaining = schedule.getKmRemaining(currentOdometer);
 
         return _MaintenanceStatusCard(
-          componentName: schedule.componentName,
+          schedule: schedule,
           status: status,
           kmRemaining: kmRemaining,
-          lastServiceKm: schedule.lastServiceKm,
+          currentOdometer: currentOdometer,
+          vehicleId: vehicleId,
         );
       },
     );
@@ -319,16 +324,18 @@ class _MaintenanceStatusGrid extends StatelessWidget {
 }
 
 class _MaintenanceStatusCard extends StatelessWidget {
-  final String componentName;
+  final MaintenanceSchedule schedule;
   final MaintenanceStatus status;
   final int? kmRemaining;
-  final int? lastServiceKm;
+  final int currentOdometer;
+  final String vehicleId;
 
   const _MaintenanceStatusCard({
-    required this.componentName,
+    required this.schedule,
     required this.status,
     this.kmRemaining,
-    this.lastServiceKm,
+    required this.currentOdometer,
+    required this.vehicleId,
   });
 
   @override
@@ -336,70 +343,94 @@ class _MaintenanceStatusCard extends StatelessWidget {
     return Card(
       color: const Color(0xFF1C1C1E),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: status.color.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    status.label,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: status.color,
+      child: InkWell(
+        onTap: () => _showEditDialog(context),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: status.color.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      status.label,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: status.color,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              componentName,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFf7f8f9),
+                  Icon(
+                    Icons.edit,
+                    size: 16,
+                    color: Color(0xFF7f7f81),
+                  ),
+                ],
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            if (kmRemaining != null)
+              const SizedBox(height: 8),
               Text(
-                kmRemaining! < 0
-                    ? '${kmRemaining!.abs()} km overdue'
-                    : '$kmRemaining km remaining',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: status == MaintenanceStatus.overdue
-                      ? Colors.red
-                      : const Color(0xFF7f7f81),
-                ),
-              ),
-            if (lastServiceKm != null)
-              Text(
-                'Last: ${lastServiceKm.toString().replaceAllMapped(
-                      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-                      (Match m) => '${m[1]},',
-                    )} km',
+                schedule.componentName,
                 style: const TextStyle(
-                  fontSize: 10,
-                  color: Color(0xFF7f7f81),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFf7f8f9),
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-          ],
+              const SizedBox(height: 8),
+              if (kmRemaining != null)
+                Text(
+                  kmRemaining! < 0
+                      ? '${kmRemaining!.abs()} km overdue'
+                      : '$kmRemaining km remaining',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: status == MaintenanceStatus.overdue
+                        ? Colors.red
+                        : const Color(0xFF7f7f81),
+                  ),
+                ),
+              if (schedule.lastServiceKm != null)
+                Text(
+                  'Last: ${schedule.lastServiceKm.toString().replaceAllMapped(
+                        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                        (Match m) => '${m[1]},',
+                      )} km',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF7f7f81),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  void _showEditDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => EditScheduleDialog(
+        schedule: schedule,
+        currentOdometer: currentOdometer,
+      ),
+    ).then((result) {
+      if (result == true && context.mounted) {
+        context.read<MaintenanceBloc>().add(LoadMaintenanceData(vehicleId));
+      }
+    });
   }
 }
 

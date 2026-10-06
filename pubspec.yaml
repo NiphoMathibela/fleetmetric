@@ -21,6 +21,8 @@ dependencies:
   equatable: ^2.0.5
   file_picker: ^8.1.2
   google_generative_ai: ^0.4.5
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
 
 dev_dependencies:
   flutter_test:
@@ -31,10 +33,16 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icon.png"
+  image_path: "assets/icon-1024.png"
+  remove_alpha_ios: true
   # Configuration for Android adaptive icons
-  adaptive_icon_background: "assets/ic_launcher.png" # Or a hex color like "#FFFFFF"
-  adaptive_icon_foreground: "assets/adaptive-foreground.png"
+  adaptive_icon_background: "assets/android_background.png"
+  adaptive_icon_foreground: "assets/icon-512.png"
+  # Optional: Windows icons
+  windows:
+    generate: true
+    image_path: "assets/icon-1024.png"
+    icon_size: 256 # Minimum 48, maximum 256
 
 flutter:
   uses-material-design: true

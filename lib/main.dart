@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/auth_gate.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   // Supabase Initialisation
@@ -9,6 +10,9 @@ void main() async {
     url: 'https://lfwhpfexxqnqnfurmkvq.supabase.co',
     publishableKey: 'sb_publishable_inMUG1x78xKUCEoT9GR_XQ__U6wN44B',
   );
+
+  // Initialize notification service
+  await NotificationService().initialize();
 
   runApp(const MyApp());
 }

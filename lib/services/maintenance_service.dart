@@ -18,8 +18,10 @@ class MaintenanceService {
     List<MaintenanceAlert> alerts = [];
 
     for (var schedule in schedules) {
-      final taskName = schedule['task_name'] as String;
-      final nextDue = schedule['next_due_odometer'] as int;
+      final taskName = schedule['component_name'] as String? ?? 'Unknown';
+      final nextDue = schedule['next_due_km'] as int?;
+      if (nextDue == null) continue;
+
       final remaining = nextDue - currentOdometer;
 
       // Alert if within 500km of service or past due

@@ -113,7 +113,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
-                          'Reg: ${vehicle.registrationNumber}\nStarting Odo: ${vehicle.startingOdometer} km',
+                          'Reg: ${vehicle.registrationNumber}\nCurrent: ${vehicle.currentOdometer} km | Starting: ${vehicle.startingOdometer} km',
                         ),
                         isThreeLine: true,
                         trailing: Row(
@@ -209,6 +209,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
           model: model,
           registrationNumber: reg,
           startingOdometer: odo,
+          currentOdometer: widget.vehicle!.currentOdometer,
         );
       } else {
         await _repo.addVehicle(
