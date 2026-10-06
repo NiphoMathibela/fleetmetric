@@ -73,7 +73,7 @@ A comprehensive fleet management mobile application built with Flutter that help
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/fleetmetric.git
+git clone https://github.com/NiphoMathibela/fleetmetric.git
 cd fleetmetric
 ```
 
